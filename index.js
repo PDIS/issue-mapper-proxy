@@ -121,7 +121,6 @@ app.post('/newcard/', function (req, res) {
     }, (error) => {
       console.log(error.message);
     });
-    res.json(data)
   });
 })
 
@@ -174,7 +173,6 @@ app.put('/editcard/', function (req, res) {
     }, (error) => {
       console.log(error.message);
     });
-    res.json(data)
   });
 })
 
@@ -183,7 +181,7 @@ app.put('/movecard/:id/:idList', function (req, res) {
     if (err) throw err;
     const IssueMapper = Parse.Object.extend("IssueMapper");
     const editCard = new IssueMapper();
-    editCard.set("action", 'editCard');
+    editCard.set("action", 'EditCard');
     editCard.set("user", req.body.user);
     editCard.set("data", data);
     editCard.save()
@@ -192,7 +190,6 @@ app.put('/movecard/:id/:idList', function (req, res) {
     }, (error) => {
       console.log(error.message);
     });
-    res.json(data)
   });
 })
 
@@ -201,14 +198,34 @@ app.put('/movecard/:id/:idList', function (req, res) {
 app.put('/closeboard/:id', function (req, res) {
   trello.put('/1/boards/' + req.params.id , {'closed': true}, function(err, data) { 
     if (err) throw err;
-    res.json(data)
+    const IssueMapper = Parse.Object.extend("IssueMapper");
+    const editCard = new IssueMapper();
+    closeBoard.set("action", 'CloseBoard');
+    closeBoard.set("user", req.body.user);
+    closeBoard.set("data", data);
+    closeBoard.save()
+    .then( ()=> {
+      res.json(data)
+    }, (error) => {
+      console.log(error.message);
+    });
   });
 })
 
 app.put('/closecard/:id', function (req, res) {
   trello.put('/1/cards/' + req.params.id , {'closed': true}, function(err, data) { 
     if (err) throw err;
-    res.json(data)
+    const IssueMapper = Parse.Object.extend("IssueMapper");
+    const closeCard = new IssueMapper();
+    closeCard.set("action", 'CloseCard');
+    closeCard.set("user", req.body.user);
+    closeCard.set("data", data);
+    closeCard.save()
+    .then( ()=> {
+      res.json(data)
+    }, (error) => {
+      console.log(error.message);
+    });
   });
 })
 
