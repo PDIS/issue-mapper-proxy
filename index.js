@@ -230,9 +230,20 @@ app.put('/closecard/:id', function (req, res) {
 })
 
 app.delete('/deleteattachment/:id/:attachmentid', function (req, res) {
-  trello.delete('/1/cards/' + req.params.id + '/attachments/' + req.params.attachmentid , function(err, data) { 
+  trello.del('/1/cards/' + req.params.id + '/attachments/' + req.params.attachmentid , function(err, data) { 
     if (err) throw err;
     res.json(data)
+  });
+})
+
+app.delete('/deleteboards', function (req, res) {
+  trello.get('/1/members/me/boards', {'filter':'open'},  async function(err, data) {
+    await data.map( b => {
+      trello.del('/1/boards/' + b.id, function(err, data) { 
+        if (err) throw err;
+      });
+    })
+    res.json('success')
   });
 })
 
