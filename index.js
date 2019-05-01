@@ -32,18 +32,27 @@ Parse.serverURL = config.parseURL
 //get
 
 app.get('/getboards', function (req, res) {
-  trello.get('/1/members/me/boards', {'filter':'open'}, function(err, data) {
+  trello.get('/1/members/me/boards', {'filter':'open'}, async function(err, data) {
     if (err) throw err;
-    res.json(data)
+    let results = []
+    for (let board of data) {
+      const IssueMapper = Parse.Object.extend("IssueMapper");
+      const query = new Parse.Query(IssueMapper);
+      query.equalTo("data.id", board.id);
+      query.descending("createdAt");
+      let result = await query.first()
+      results.push(result)
+    }
+    res.json(results)
   });
 })
 
-app.get('/getboardinfo/:id', function (req, res) {
+/* app.get('/getboardinfo/:id', function (req, res) {
   trello.get('/1/boards/' + req.params.id, {'fields':'all'}, function(err, data) {
     if (err) throw err;
     res.json(data)
   });
-})
+}) */
 
 app.get('/getlists/:id', function (req, res) {
   trello.get('/1/boards/' + req.params.id + '/lists', {'cards':'open'}, function(err, data) {
@@ -73,13 +82,13 @@ app.get('/getattachment/:id', function (req, res) {
   });
 })
 
-app.get('/getinfo/:id', function (req, res) {
+app.get('/getboardinfo/:id', function (req, res) {
   const IssueMapper = Parse.Object.extend("IssueMapper");
   const query = new Parse.Query(IssueMapper);
   query.equalTo("data.id", req.params.id);
   query.descending("createdAt");
-  query.first().then( (results) => {
-    res.json(results)
+  query.find().then( (results) => {
+    res.json(results[0])
   });
 })
 
@@ -91,7 +100,7 @@ app.post('/newboard/', function (req, res) {
       if (err) throw err;
       data.admins = []
       data.members = []
-      data.admins.push(req.body.user)
+      data.admins.push(req.body.user.email)
       const IssueMapper = Parse.Object.extend("IssueMapper");
       const createBoard = new IssueMapper();
       createBoard.set("action", 'CreateBoard');
@@ -127,7 +136,17 @@ app.post('/newcard/', function (req, res) {
 app.post('/newattachmenturl/:id/:name/:url/', function (req, res) {
   trello.post('/1/cards/' + req.params.id + '/attachments' , {'name': req.params.name, 'url': req.params.url}, function(err, data) {
     if (err) throw err;
-    res.json(data)
+    const IssueMapper = Parse.Object.extend("IssueMapper");
+    const createAttachment = new IssueMapper();
+    createAttachment.set("action", 'CreateAttachment');
+    createAttachment.set("user", req.body);
+    createAttachment.set("data", data);
+    createAttachment.save()
+    .then( ()=> {
+      res.json(data)
+    }, (error) => {
+      console.log(error.message);
+    });
   });
 })
 
@@ -145,6 +164,8 @@ app.post('/newattachment/:id/:name/', upload.single('file'), function (req, res)
 app.put('/editboard/', function (req, res) {
   trello.put('/1/boards/' + req.body.id , {'name': req.body.name, 'desc': JSON.stringify(req.body.desc)}, function(err, data) {
     if (err) throw err;
+    data.admins = req.body.admins
+    data.members = req.body.members
     const IssueMapper = Parse.Object.extend("IssueMapper");
     const editBoard = new IssueMapper();
     editBoard.set("action", 'EditBoard');
@@ -182,7 +203,7 @@ app.put('/movecard/:id/:idList', function (req, res) {
     const IssueMapper = Parse.Object.extend("IssueMapper");
     const editCard = new IssueMapper();
     editCard.set("action", 'EditCard');
-    editCard.set("user", req.body.user);
+    editCard.set("user", req.body);
     editCard.set("data", data);
     editCard.save()
     .then( ()=> {
@@ -193,15 +214,33 @@ app.put('/movecard/:id/:idList', function (req, res) {
   });
 })
 
+app.put('/invite', function (req, res) {
+  req.body.email.replace(/[\s]+/g,'').split(',').map( email => {
+    req.body.board.members.push(email)
+  })
+  req.body.board.desc = JSON.stringify(req.body.board.desc)
+  const IssueMapper = Parse.Object.extend("IssueMapper");
+  const invite = new IssueMapper();
+  invite.set("action", 'Invite');
+  invite.set("user", req.body.user);
+  invite.set("data", req.body.board);
+  invite.save()
+  .then( ()=> {
+    res.json(req.body.board)
+  }, (error) => {
+    console.log(error.message);
+  });
+})
+
 //delete
 
 app.put('/closeboard/:id', function (req, res) {
   trello.put('/1/boards/' + req.params.id , {'closed': true}, function(err, data) { 
     if (err) throw err;
     const IssueMapper = Parse.Object.extend("IssueMapper");
-    const editCard = new IssueMapper();
+    const closeBoard = new IssueMapper();
     closeBoard.set("action", 'CloseBoard');
-    closeBoard.set("user", req.body.user);
+    closeBoard.set("user", req.body);
     closeBoard.set("data", data);
     closeBoard.save()
     .then( ()=> {
@@ -218,7 +257,7 @@ app.put('/closecard/:id', function (req, res) {
     const IssueMapper = Parse.Object.extend("IssueMapper");
     const closeCard = new IssueMapper();
     closeCard.set("action", 'CloseCard');
-    closeCard.set("user", req.body.user);
+    closeCard.set("user", req.body);
     closeCard.set("data", data);
     closeCard.save()
     .then( ()=> {
@@ -232,7 +271,17 @@ app.put('/closecard/:id', function (req, res) {
 app.delete('/deleteattachment/:id/:attachmentid', function (req, res) {
   trello.del('/1/cards/' + req.params.id + '/attachments/' + req.params.attachmentid , function(err, data) { 
     if (err) throw err;
-    res.json(data)
+    const IssueMapper = Parse.Object.extend("IssueMapper");
+    const closeCard = new IssueMapper();
+    deleteAttachment.set("action", 'DeleteAttachment');
+    deleteAttachment.set("user", req.body);
+    deleteAttachment.set("data", data);
+    deleteAttachment.save()
+    .then( ()=> {
+      res.json(data)
+    }, (error) => {
+      console.log(error.message);
+    });
   });
 })
 
