@@ -136,10 +136,11 @@ app.post('/newcard/', function (req, res) {
 app.post('/newattachmenturl/', function (req, res) {
   trello.post('/1/cards/' + req.body.id + '/attachments' , {'name': req.body.name, 'url': req.body.url}, function(err, data) {
     if (err) throw err;
+    console.log(data)
     const IssueMapper = Parse.Object.extend("IssueMapper");
     const createAttachment = new IssueMapper();
     createAttachment.set("action", 'CreateAttachment');
-    createAttachment.set("user", req.body);
+    createAttachment.set("user", req.body.user);
     createAttachment.set("data", data);
     createAttachment.save()
     .then( ()=> {
