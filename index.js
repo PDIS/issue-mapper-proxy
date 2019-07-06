@@ -92,6 +92,17 @@ app.get('/getboardinfo/:id', function (req, res) {
   });
 })
 
+app.get('/getlogs/:id', function (req, res) {
+  const IssueMapper = Parse.Object.extend("IssueMapper");
+  const query = new Parse.Query(IssueMapper);
+  query.equalTo("data.idBoard", req.params.id);
+  query.descending("createdAt");
+  query.find().then( (results) => {
+    res.json(results)
+  });
+})
+
+
 //post
 
 app.post('/newboard/', function (req, res) {
